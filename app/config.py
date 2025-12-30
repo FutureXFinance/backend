@@ -1,6 +1,8 @@
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 import os
 from dotenv import load_dotenv
+from typing import List
 
 load_dotenv()
 
@@ -20,8 +22,15 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = os.getenv("REDIS_URL", "")
     
-    # CORS
-    CORS_ORIGINS: list = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
+    # CORS - will be parsed from comma-separated string
+    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001"]
+    
+    @field_validator('CORS_ORIGINS', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            return [origin.strip() for origin in v.split(',')]
+        return v
     
     # Storage
     STORAGE_BUCKET: str = os.getenv("STORAGE_BUCKET", "futurex-assets")
