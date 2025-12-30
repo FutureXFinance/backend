@@ -4,7 +4,7 @@ from typing import List, Dict, Any
 import uuid
 import os
 import aiofiles
-from app.services.documents.parser import doc_parser
+from app.services.documents.parser import document_parser
 
 router = APIRouter()
 
@@ -27,7 +27,7 @@ async def parse_document(file: UploadFile = File(...)):
             await f.write(content)
             
         # Call documentation parsing service
-        result = await doc_parser.process(file_path)
+        result = document_parser.parse(file_path)
         
         return ParsingResult(
             document_id=str(uuid.uuid4()),

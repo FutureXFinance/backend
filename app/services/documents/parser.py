@@ -3,6 +3,7 @@ Production-Grade Document Parser Service
 Implements OCR, NER, and structured data extraction from documents
 """
 
+import os
 import cv2
 import numpy as np
 from typing import Dict, Any, List, Optional, Tuple
@@ -356,5 +357,3 @@ class DocumentParser:
 
 # Global instance
 document_parser = DocumentParser()
-
-import os
