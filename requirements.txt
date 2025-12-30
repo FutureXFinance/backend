@@ -5,10 +5,10 @@ python-dotenv==1.0.0
 pydantic==2.5.3
 pydantic-settings==2.1.0
 
-# Database (Optional - comment out if not using)
-# sqlalchemy==2.0.25
-# psycopg2-binary==2.9.9
-# pymongo==4.6.0
+# Database
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9
+alembic==1.13.1
 
 # Auth & Security
 python-jose[cryptography]==3.3.0

@@ -23,14 +23,23 @@ class Settings(BaseSettings):
     REDIS_URL: str = os.getenv("REDIS_URL", "")
     
     # CORS - will be parsed from comma-separated string
-    CORS_ORIGINS: List[str] = ["http://localhost:3000", "http://localhost:3001"]
+    CORS_ORIGINS: List[str] = []
     
     @field_validator('CORS_ORIGINS', mode='before')
     @classmethod
     def parse_cors_origins(cls, v):
+        # If None or empty, return defaults
+        if v is None or v == [] or v == '':
+            return ["http://localhost:3000", "http://localhost:3001"]
+        # If string, parse comma-separated values
         if isinstance(v, str):
-            return [origin.strip() for origin in v.split(',')]
-        return v
+            origins = [origin.strip() for origin in v.split(',') if origin.strip()]
+            return origins if origins else ["http://localhost:3000", "http://localhost:3001"]
+        # If already a list, return it
+        if isinstance(v, list):
+            return v if v else ["http://localhost:3000", "http://localhost:3001"]
+        # Fallback to defaults
+        return ["http://localhost:3000", "http://localhost:3001"]
     
     # Storage
     STORAGE_BUCKET: str = os.getenv("STORAGE_BUCKET", "futurex-assets")
