@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     REDIS_URL: str = os.getenv("REDIS_URL", "")
     
     # CORS
-    CORS_ORIGINS: list = ["http://localhost:3000", "https://futurexfinance.vercel.app"]
+    CORS_ORIGINS: list = os.getenv("CORS_ORIGINS", "http://localhost:3000,http://localhost:3001").split(",")
     
     # Storage
     STORAGE_BUCKET: str = os.getenv("STORAGE_BUCKET", "futurex-assets")
