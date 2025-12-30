@@ -22,24 +22,10 @@ class Settings(BaseSettings):
     # Redis
     REDIS_URL: str = os.getenv("REDIS_URL", "")
     
-    # CORS - will be parsed from comma-separated string
-    CORS_ORIGINS: List[str] = []
     
-    @field_validator('CORS_ORIGINS', mode='before')
-    @classmethod
-    def parse_cors_origins(cls, v):
-        # If None or empty, return defaults
-        if v is None or v == [] or v == '':
-            return ["http://localhost:3000", "http://localhost:3001"]
-        # If string, parse comma-separated values
-        if isinstance(v, str):
-            origins = [origin.strip() for origin in v.split(',') if origin.strip()]
-            return origins if origins else ["http://localhost:3000", "http://localhost:3001"]
-        # If already a list, return it
-        if isinstance(v, list):
-            return v if v else ["http://localhost:3000", "http://localhost:3001"]
-        # Fallback to defaults
-        return ["http://localhost:3000", "http://localhost:3001"]
+    # CORS - using different field name to avoid Pydantic env parsing
+    # Will be populated from CORS_ORIGINS env var after instantiation
+    cors_allowed_origins: List[str] = []
     
     # Storage
     STORAGE_BUCKET: str = os.getenv("STORAGE_BUCKET", "futurex-assets")
@@ -47,4 +33,20 @@ class Settings(BaseSettings):
     class Config:
         case_sensitive = True
 
+# Create settings instance
 settings = Settings()
+
+# Manually parse CORS_ORIGINS from environment and set to cors_allowed_origins
+_cors_raw = os.getenv("CORS_ORIGINS", "")
+if _cors_raw and _cors_raw.strip():
+    if _cors_raw.startswith('['):
+        try:
+            import json
+            settings.cors_allowed_origins = json.loads(_cors_raw)
+        except:
+            settings.cors_allowed_origins = [origin.strip() for origin in _cors_raw.split(',') if origin.strip()]
+    else:
+        settings.cors_allowed_origins = [origin.strip() for origin in _cors_raw.split(',') if origin.strip()]
+else:
+    settings.cors_allowed_origins = ["http://localhost:3000", "http://localhost:3001"]
+
