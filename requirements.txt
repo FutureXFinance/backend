@@ -1,16 +1,14 @@
+# Core FastAPI
 fastapi==0.108.0
 uvicorn[standard]==0.25.0
 python-dotenv==1.0.0
 pydantic==2.5.3
 pydantic-settings==2.1.0
 
-# Database
-sqlalchemy==2.0.25
-alembic==1.13.1
-psycopg2-binary==2.9.9
-pymongo==4.6.0
-motor==3.3.2
-redis==5.0.1
+# Database (Optional - comment out if not using)
+# sqlalchemy==2.0.25
+# psycopg2-binary==2.9.9
+# pymongo==4.6.0
 
 # Auth & Security
 python-jose[cryptography]==3.3.0
@@ -20,45 +18,31 @@ python-multipart==0.0.6
 # HTTP & Async
 httpx==0.26.0
 aiofiles==23.2.1
-aiohttp==3.9.1
 
-# AI/ML Core
+# AI/ML Core - Essential only
 scikit-learn==1.3.2
 numpy==1.26.2
-pandas==2.1.4
 
 # Anomaly Detection (Fraud)
 pyod==1.1.2
 
-# NLP & Transformers
-transformers==4.36.2
-torch==2.1.2
-spacy==3.7.2
-nltk==3.8.1
-
 # Computer Vision & OCR
-opencv-python==4.9.0.80
+opencv-python-headless==4.9.0.80
 pytesseract==0.3.10
-face-recognition==1.3.0
 Pillow==10.1.0
 
 # Document Processing
 PyPDF2==3.0.1
-pdfplumber==0.10.3
-python-docx==1.1.0
-
-# Web Scraping (Compliance)
-beautifulsoup4==4.12.2
-scrapy==2.11.0
-lxml==4.9.4
-
-# Recommendations (Insights)
-surprise==0.1
-
-# Chatbot
-rasa==3.6.13
 
 # Utilities
 python-dateutil==2.8.2
 requests==2.31.0
-celery==5.3.4
+
+# Note: Heavy dependencies removed for Railway deployment
+# - torch (too large for Railway free tier)
+# - transformers (requires torch)
+# - spacy (large models)
+# - face-recognition (requires dlib, complex to build)
+# - rasa (very heavy)
+# 
+# Services will use fallback modes for these features
