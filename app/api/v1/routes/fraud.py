@@ -3,13 +3,16 @@ Fraud Detection API Routes
 Handles transaction analysis and fraud detection
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import logging
+from sqlalchemy.orm import Session
 
 from app.services.fraud.detector_enhanced import fraud_detector
+from app.services.fraud.service import FraudDetectionService
+from app.database import get_db
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -52,9 +55,13 @@ class TrainingData(BaseModel):
 
 
 @router.post("/analyze", response_model=FraudAnalysisResult)
-async def analyze_transaction(transaction: TransactionInput):
+async def analyze_transaction(
+    transaction: TransactionInput,
+    user_id: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
     """
-    Analyze a transaction for fraud
+    Analyze a transaction for fraud and save to database
     
     - **amount**: Transaction amount (required)
     - **type**: Transaction type (purchase, withdrawal, transfer, etc.)
@@ -64,6 +71,7 @@ async def analyze_transaction(transaction: TransactionInput):
     - **recent_transaction_count**: Number of recent transactions
     - **amount_last_hour**: Total amount transacted in last hour
     - **count_last_hour**: Number of transactions in last hour
+    - **user_id**: Optional user ID for profile lookup
     
     Returns detailed fraud analysis with risk score and recommendations
     """
@@ -75,8 +83,10 @@ async def analyze_transaction(transaction: TransactionInput):
         if not transaction_dict.get('timestamp'):
             transaction_dict['timestamp'] = datetime.utcnow().isoformat()
         
-        # Perform fraud detection
-        result = fraud_detector.detect(transaction_dict)
+        # Perform fraud detection with database integration
+        result = FraudDetectionService.analyze_transaction_with_db(
+            transaction_dict, db, user_id
+        )
         
         logger.info(
             f"Analyzed transaction {result['transaction_id']}: "
@@ -298,3 +308,173 @@ async def simulate_fraud_scenarios():
         "scenarios": results,
         "note": "These are simulated scenarios for testing purposes"
     }
+
+
+# New Database-Integrated Endpoints
+
+@router.get("/history")
+async def get_transaction_history(
+    db: Session = Depends(get_db),
+    user_id: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0,
+    risk_level: Optional[str] = None,
+    is_fraudulent: Optional[bool] = None
+):
+    try:
+        result = FraudDetectionService.get_transaction_history(
+            db, user_id, limit, offset, risk_level, is_fraudulent
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Error fetching transaction history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# Database-Integrated Endpoints
+
+@router.get("/history")
+async def get_transaction_history(
+    db: Session = Depends(get_db),
+    user_id: Optional[str] = None,
+    limit: int = 20,
+    offset: int = 0,
+    risk_level: Optional[str] = None,
+    is_fraudulent: Optional[bool] = None
+):
+    """Get transaction history with fraud analysis results"""
+    try:
+        result = FraudDetectionService.get_transaction_history(
+            db, user_id, limit, offset, risk_level, is_fraudulent
+        )
+        return result
+    except Exception as e:
+        logger.error(f"Error fetching transaction history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/alerts")
+async def get_alerts(
+    db: Session = Depends(get_db),
+    status: str = "PENDING",
+    severity: Optional[str] = None,
+    limit: int = 50
+):
+    """Get fraud alerts"""
+    try:
+        result = FraudDetectionService.get_active_alerts(db, status, severity, limit)
+        return result
+    except Exception as e:
+        logger.error(f"Error fetching alerts: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/alerts/{alert_id}")
+async def update_alert(
+    alert_id: str,
+    db: Session = Depends(get_db),
+    status: Optional[str] = None,
+    assigned_to: Optional[str] = None,
+    resolution_notes: Optional[str] = None
+):
+    """Update fraud alert status"""
+    try:
+        if not status:
+            raise HTTPException(status_code=400, detail="Status is required")
+        
+        result = FraudDetectionService.update_alert_status(
+            db, alert_id, status, assigned_to, resolution_notes
+        )
+        
+        if 'error' in result:
+            raise HTTPException(status_code=404, detail=result['error'])
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error updating alert: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/user/{user_id}/profile")
+async def get_user_profile(
+    user_id: str,
+    db: Session = Depends(get_db)
+):
+    """Get user risk profile"""
+    try:
+        profile = FraudDetectionService.get_user_profile(db, user_id)
+        
+        if not profile:
+            raise HTTPException(status_code=404, detail=f"User profile not found for {user_id}")
+        
+        return profile
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching user profile: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/analytics/dashboard")
+async def get_dashboard_analytics(
+    db: Session = Depends(get_db),
+    days: int = 30
+):
+    """Get fraud detection analytics for dashboard"""
+    try:
+        analytics = FraudDetectionService.get_dashboard_analytics(db, days)
+        return analytics
+    except Exception as e:
+        logger.error(f"Error fetching dashboard analytics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/retrain")
+async def retrain_model(training_data: Optional[TrainingData] = None):
+    """Retrain the fraud detection model"""
+    try:
+        if training_data and training_data.transactions:
+            metrics = fraud_detector.train(training_data.transactions)
+        else:
+            if not fraud_detector.is_trained:
+                raise HTTPException(
+                    status_code=400,
+                    detail="No training data available"
+                )
+            metrics = {"message": "Model already trained", "version": fraud_detector.model_version}
+        
+        return {
+            "status": "success",
+            "model_version": fraud_detector.model_version,
+            "metrics": metrics
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error retraining model: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/model/metrics")
+async def get_model_metrics():
+    """Get fraud detection model information"""
+    try:
+        return {
+            "model_version": fraud_detector.model_version,
+            "is_trained": fraud_detector.is_trained,
+            "feature_count": len(fraud_detector.feature_extractor.get_feature_names()),
+            "risk_thresholds": {
+                "CRITICAL": "> 80",
+                "HIGH": "60-80",
+                "MEDIUM": "40-60",
+                "LOW": "< 40"
+            },
+            "ensemble_weights": {
+                "ml_score": 0.6,
+                "rule_score": 0.4
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error fetching model metrics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
