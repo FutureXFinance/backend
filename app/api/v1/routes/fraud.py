@@ -9,7 +9,7 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 import logging
 
-from app.services.fraud.detector import fraud_detector
+from app.services.fraud.detector_enhanced import fraud_detector
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
