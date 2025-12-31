@@ -241,7 +241,7 @@ class FraudDetector:
         Returns:
             Detection result with risk score and details
         """
-        transaction_id = transaction.get('transaction_id', str(uuid.uuid4()))
+        transaction_id = transaction.get('transaction_id') or str(uuid.uuid4())
         timestamp = datetime.utcnow().isoformat()
         
         # Extract features
